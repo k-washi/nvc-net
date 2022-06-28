@@ -14,7 +14,9 @@ docker-compose -f docker-compose-gpu.yml up -d
 - [nnbala-cudaのインストール](https://nnabla.readthedocs.io/en/latest/python/pip_installation_cuda.html)
 
 ```
-pip install nnabla-ext-cuda110
+pip install nnabla
+pip install nnabla-ext-cuda110-nccl2-mpi3-1-6
+python -c "import nnabla_ext.cuda, nnabla_ext.cudnn"
 ```
 
 ## データセットのダウンロード
@@ -25,7 +27,7 @@ pip install nnabla-ext-cuda110
 mkdir ./data
 wget http://www.udialogue.org/download/VCTK-Corpus.tar.gz -O ./data/VCTK-Corpus.tar.gz
 cd ./data
-tar 
+tar -xvf VCTK-Corpus.tar.gz
 ```
 
 # 実行環境作成(エディターモード)
