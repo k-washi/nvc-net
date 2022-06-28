@@ -1,21 +1,19 @@
-version: '2.3'
+version: '3'
 
 services:
-  ml-dev:
+  cv-nvcnet:
     build:
       context: .
       dockerfile: ./.docker/Dockerfile.gpu
-    container_name: ml-dev
-    image: ml-dev-image
-    shm_size: '16gb'
+    container_name: cv-nvcnet-dev
+    image: cv-nvcnet-image
+    shm_size: '24gb'
     tty: true
-    env_file:
-      - .env
-    volumes: 
+    volumes:
       - $PWD:/workspace
     command: 'jupyter-lab --allow-root --port 18082 --ip 0.0.0.0 --no-browser'
     ports:
-      - 18081-18090:18081-18090
+      - 18051-18060:18051-18060
     deploy:
       resources:
         reservations:
