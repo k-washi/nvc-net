@@ -41,15 +41,15 @@ except Exception:
 print(install_requires)
 
 setup(
-    name="mlexpenv",
+    name="nvcnet",
     version=find_version("src", "__init__.py"),
-    description="Template for machine learning model development.",
+    description="voice conversion nvc net",
     author="Kai Washizaki",
     author_email="bandad.kw@gmail.com",
     long_description=LONG_DESC,
     long_description_content_type="text/markdown",
     package_data={"": ["_example_data/*"]},
-    packages=find_packages(include=["src*", "tests*"]),
+    packages=find_packages(include=["src*", "tests*", "nvcnet*"]),
     include_package_data=True,
     install_requires=install_requires,
 )
