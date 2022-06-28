@@ -1,5 +1,10 @@
 albumentations>=1.1.0
 
+seaborn
+sklearn
+librosa
+numba==0.48.0
+
 hydra-core>=1.1.1
 pytest>=7.0.1
 tox>=3.24.5
@@ -16,8 +21,6 @@ python-dotenv>=0.19.2
 matplotlib>=3.5.1
 japanize-matplotlib>=1.1.3
 
-jupyter>=1.0.0
-jupyterlab>=3.2.9
 pandas>=1.4.1
 joblib>=1.1.0
 
@@ -44,11 +47,7 @@ torchmetrics>=0.7.2
 nnmnkwii>=0.1.1
 pyopenjtalk>=0.1.0
 
-neptune-client==0.14.3
-dvc==2.9.5
+neptune-client>=0.14.3
 
-seaborn
-sklearn
-librosa
-numba==0.48.0
+
 
