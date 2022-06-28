@@ -11,6 +11,6 @@ services:
     tty: true
     volumes: 
       - $PWD:/workspace
-    command: 'jupyter-lab --allow-root --port 18082 --ip 0.0.0.0 --no-browser'
+    command: '/bin/bash'
     ports:
       - 18051-18060:18051-18060
