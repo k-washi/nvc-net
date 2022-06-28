@@ -1,9 +1,32 @@
 # ml-exp-env
 機械学習実験環境
 
-# nvc-net インストールの注意
+# nvc-net インストール
+
+## docker環境の作成
+
+```
+docker-compose -f docker-compose-gpu.yml up -d
+```
 
 [numbaにおいてllvmliteでpython3.9のpipが対応していないため、3.8.10を使用する](https://github.com/numba/llvmlite/issues/621#issuecomment-727142311)
+
+- [nnbala-cudaのインストール](https://nnabla.readthedocs.io/en/latest/python/pip_installation_cuda.html)
+
+```
+pip install nnabla-ext-cuda110
+```
+
+## データセットのダウンロード
+
+[VCTKデータセット](http://www.udialogue.org/ja/download-ja/cstr-vctk-corpus.html)
+
+```
+mkdir ./data
+wget http://www.udialogue.org/download/VCTK-Corpus.tar.gz -O ./data/VCTK-Corpus.tar.gz
+cd ./data
+tar 
+```
 
 # 実行環境作成(エディターモード)
 
