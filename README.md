@@ -38,46 +38,16 @@ tar -xvf VCTK-Corpus.tar.gz
 pip install -e .
 ```
 
-# test
-
-テストの実行方法です。`pytest`か`tox`の使用方法を記載しています。
-
-```
-python -m pytest
-```
-
-toxで使用されるモジュールは、まず環境の作成を行います。
-
-```
-python -m tox
-```
-
-
-もし、toxの環境を作り直す
-
-```
-python -m tox -r
-```
-
-テストの実行方法です。
-```
-python -m tox -e py39
-```
-
-リンターによるチェックです。
-```
-python -m tox -e lint
-```
-
 # Docker
 
  CUDAによりpytorchのインストール方法が異なるので、適宜[公式](https://pytorch.org/)を参照し、インストールしてください。
 
 ```
-docker-compose -f docker-compose-cpu.yml up -d
+docker-compose -f docker-compose-gpu.yml up -d
 ```
 
 でコンテナを作成し、VS Codeの`ms-vscode-remote.remote-containers`から開発環境に入る
+
 
 # gpu周り
 
@@ -98,24 +68,6 @@ docker-compose -f docker-compose-cpu.yml up -d
 runtime: nvidia
 ```
 
-# ローカル環境で仮想環境の作成
-
-```
-python -m venv .venv
-```
-
-```
-source .venv/bin/activate
-```
-
-```
-deactivate
-```
-
-versoinを変更したい場合、最初にpythonのバージョンを変更する。
-```
-pyenv local 3.8.0
-```
 
 # vscode extensionの設定
 
@@ -127,3 +79,15 @@ pyenv local 3.8.0
 ./.devcontainer/vscode_extentions_install_batch.sh
 ```
 
+# 訓練の実行
+
+
+```
+# 前処理
+
+python nvcnet/preprocess.py -i data/VCTK-Corpus/wav48/ -o ./data/vctk_out/ -s ./nvcnet/data/list_of_speakers.txt --make-test
+
+# 訓練
+
+ python nvcnet/main.py -c cudnn -d 0 --output_path .log/baseline/ --batch_size 2 --speaker_dir=./nvcnet/data/list_of_speakers.txt --save_data_dir=./data/vctk_train/ 
+ ```
