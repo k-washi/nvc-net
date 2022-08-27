@@ -1,7 +1,14 @@
-defaults:
-  - base_ml
 seed: 3407
 
-batch_size: 32
-learning_rate: 0.001
-optimizer: AdamW
+# optimization parameters
+batch_size: 8
+epoch: 500
+print_frequency: 50               # number of iterations before printing
+epochs_per_checkpoint: 50        # number of epochs for each checkpoint
+output_path: "./log/output/"      # directory to save results
+
+g_lr: 1e-4                        # learning rate for generator
+d_lr: 1e-4                        # learning rate for discriminator
+beta1: 0.5
+beta2: 0.9
+weight_decay: 0

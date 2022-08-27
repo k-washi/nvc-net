@@ -1,0 +1,14 @@
+# path to precomputed features
+save_data_dir: data/vctk/train
+speaker_dir: src/dataset/vctk/spk/list_of_speakers.txt
+
+sr: 22050                         # sampling rate
+segment_length: 32768             # sample length
+n_speakers: 103
+
+# data augmentation
+scale_low: 0.25                  # lower bound used in random scaling
+scale_high: 1.0                  # upper bound used in random scaling
+split_low: 30                    # lower bound used in random shuffle
+split_hight: 45                  # upper bound used in random shuffle
+max_jitter_steps: 30             # random jitter

@@ -1,0 +1,20 @@
+n_speaker_embedding: 128          # dimension of speaker embedding
+
+# Discriminator network
+ndf: 16
+n_layers_D: 4                     # number of layers in discriminator
+num_D: 3
+downsamp_factor: 4
+n_D_updates: 2
+
+# Generator network
+ngf: 32
+n_residual_layers: 4
+ratios: [8, 8, 2, 2]
+bottleneck_dim: 4
+
+# Speaker network
+n_spk_layers: 5                  # number of layers in speaker encoder
+
+# multi-scale spectral loss
+window_sizes: [2048, 1024, 512]

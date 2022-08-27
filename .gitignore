@@ -140,3 +140,4 @@ data.dvc
 .neptune/
 .hydra
 nohup/
+log/

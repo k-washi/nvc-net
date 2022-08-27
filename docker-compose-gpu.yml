@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: ./.docker/Dockerfile.gpu
-    container_name: cv-nvcnet-dev
+    container_name: cv-nvcnet
     image: cv-nvcnet-image
     shm_size: '24gb'
     tty: true

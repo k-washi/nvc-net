@@ -84,8 +84,14 @@ runtime: nvidia
 
 ```
 # 前処理
+# make-testで0.1 evalに使用する (訓練用)
+python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/train -s ./src/dataset/vctk/spk/list_of_speakers.txt --make-test
 
-python nvcnet/preprocess.py -i data/VCTK-Corpus/wav48/ -o ./data/vctk_out/ -s ./nvcnet/data/list_of_speakers.txt --make-test
+# 評価用
+python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/val -s ./src/dataset/vctk/spk/list_of_subs.txt
+
+# Unseen
+python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/unseen -s ./src/dataset/vctk/spk/list_of_unseen_speakers.txt 
 
 # 訓練
 

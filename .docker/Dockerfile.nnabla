@@ -1,7 +1,10 @@
-FROM nvidia/cuda:11.7.1-devel-ubuntu20.04
+FROM nnabla/nnabla-ext-cuda-multi-gpu:py38-cuda110-mpi3.1.6-v1.19.0
+USER root
 
+ENV HTTP_PROXY ${http_proxy}
+ENV HTTPS_PROXY ${https_proxy}
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
 ENV DEBIAN_FRONTEND=noninteractive
-#RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ACFA9FC57E6C5DBE
 RUN apt-get update -y && apt-get install -y build-essential vim \
     wget curl git zip gcc make cmake openssl \
     libssl-dev libbz2-dev libreadline-dev \
@@ -14,8 +17,8 @@ ENV PYENV_ROOT $HOME/.pyenv
 ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 RUN pyenv --version
 
-RUN pyenv install 3.9.13
-RUN pyenv global 3.9.13
+RUN pyenv install 3.8.10
+RUN pyenv global 3.8.10
 
 RUN python --version
 RUN pyenv rehash
@@ -24,7 +27,7 @@ RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-#RUN pip install torch torchvision torchaudio -f https://download.pytorch.org/whl/cu116/torch_stable.html
-RUN pip3 install torch==1.10.2+cu113 torchvision==0.11.3+cu113 torchaudio==0.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+RUN pip install torch==1.10.2+cu113 torchvision==0.11.3+cu113 torchaudio==0.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+
 
 WORKDIR /workspace

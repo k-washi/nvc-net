@@ -1,7 +1,8 @@
 defaults:
   - _self_
   - ml: ml
-  - neptune: neptune
+  - dataset: vctk
+  - model: nvcnet
 
 hydra:
   run:

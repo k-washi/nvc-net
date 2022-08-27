@@ -3,7 +3,6 @@ albumentations>=1.1.0
 seaborn
 sklearn
 librosa
-numba==0.48.0
 sox
 
 hydra-core>=1.1.1
