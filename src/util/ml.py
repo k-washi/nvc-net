@@ -18,3 +18,17 @@ def set_seed(seed: int = 3407):
 
     torch.use_deterministic_algorithms = True
     torch.backends.cudnn.deterministic = True  # True:再現性は上がるが、処理パフォーマンスが低下
+
+def tensor_to_np(waveform):
+    if isinstance(waveform, np.ndarray):
+        return waveform
+    elif isinstance(waveform, torch.Tensor):
+        return waveform.cpu().detach().numpy().copy()
+    raise ValueError(f"Type error: {type(waveform)}")
+
+def np_to_tensor(waveform):
+    if isinstance(waveform, np.ndarray):
+        return torch.from_numpy(waveform)
+    elif isinstance(waveform, torch.Tensor):
+        return waveform
+    raise ValueError(f"Type error: {type(waveform)}")
