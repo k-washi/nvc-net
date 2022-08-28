@@ -32,3 +32,6 @@ def np_to_tensor(waveform):
     elif isinstance(waveform, torch.Tensor):
         return waveform
     raise ValueError(f"Type error: {type(waveform)}")
+
+def torch_random_int(low:int, high:int) -> int:
+    return torch.randint(low=low, high=high, size=(1,)).item()

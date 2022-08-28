@@ -1,6 +1,7 @@
 # path to precomputed features
-save_data_dir: data/vctk/train
-speaker_dir: src/dataset/vctk/spk/list_of_speakers.txt
+data_dir: data/vctk/train/data
+dataset_metadata_file: data/vctk/train/metadata_train.csv
+speaker_list_file: src/dataset/vctk/spk/list_of_speakers.txt
 
 sr: 22050                         # sampling rate
 segment_length: 32768             # sample length
