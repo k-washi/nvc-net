@@ -228,7 +228,7 @@ class NVCNet(Module):
         return 0.5 * F.mean(F.sum(F.exp(logvar) + mu**2 - 1. - logvar, axis=1))
 
     def sample(self, mu, logvar):
-        r"""Samples from a Gaussian distribution.
+        """Samples from a Gaussian distribution.
 
         Args:
             mu (nn.Variable): Mean of the distribution of shape (B, D, 1).

@@ -1,6 +1,7 @@
 import torch
 import torchaudio
 import torchaudio.transforms as at
+import torch.nn as nn
 
 def load_wave(wave_path, sample_rate:int=16000) -> torch.Tensor:
     waveform, sr = torchaudio.load(wave_path, normalize=True)
@@ -8,41 +9,59 @@ def load_wave(wave_path, sample_rate:int=16000) -> torch.Tensor:
         waveform = at.Resample(sr, sample_rate)(waveform)
     return waveform
 
-def spectrogram(wave:torch.Tensor, window_size:int, hoplength_div:int=4, power=2.0) -> torch.Tensor:
+class Spectrogram(nn.Module):
+    def __init__(self, window_size:int, hoplength_div:int=4, power=2.0, channel_ignore=False) -> None:
+        super().__init__()
+        self._tf = at.Spectrogram(
+            n_fft=window_size,
+            win_length=window_size,
+            hop_length=int(window_size // hoplength_div),
+            power=power
+        )
+        
+        self._inv_tf =  at.GriffinLim(
+            n_fft=window_size,
+            win_length=window_size,
+            hop_length=int(window_size // hoplength_div)
+        )
+        
+        self.channel_ignore = channel_ignore
     
-    return at.Spectrogram(
-        n_fft=window_size,
-        win_length=window_size,
-        hop_length=int(window_size // hoplength_div),
-        power=power
-    )(wave)
+    def forward(self, wave):
+        spec = self._tf(wave)
+        if self.channel_ignore and spec.dim() == 4:
+            spec = spec[:, 0, ...]
+        return spec
 
-def spec_to_inv_by_griffinlim(spec:torch.Tensor, window_size:int, hoplength_div:int=4) -> torch.Tensor:
-    return at.GriffinLim(
-        n_fft=window_size,
-        win_length=window_size,
-        hop_length=int(window_size / hoplength_div)
-    )(spec)
+    def log(self, wave):
+        return self(wave).log2()
+    
+    def inverse_by_griffinlim(self, spec):
+        return self._inv_tf(spec)
 
-def log_spectrogram(wave:torch.Tensor, window_size:int) -> torch.Tensor:
-    spec = spectrogram(wave, window_size)
-    return spec.log2()
+class MelSpectrogram(nn.Module):
+    def __init__(self, sr:int, window_size:int, n_mels:int=80, hoplength_div:int=4, channel_ignore=False) -> None:
+        super().__init__()
+        self._tf = at.MelSpectrogram(
+            sr, 
+            n_fft=window_size,
+            win_length=window_size,
+            hop_length=int(window_size // hoplength_div),
+            n_mels=n_mels,
+            f_min=80.0, f_max=7600.0,
+        )
+        self.channel_ignore = channel_ignore
+    
+    def forward(self, wave):
+        melspec = self._tf(wave)
+        if self.channel_ignore and melspec.dim() == 4:
+            melspec = melspec[:, 0, ...]
+        return melspec
 
-def mel_spectrogram(wave: torch.Tensor, sr:int, window_size:int, n_mels:int=80, hoplength_div:int=4) -> torch.Tensor:
-    return at.MelSpectrogram(
-        sr, 
-        n_fft=window_size,
-        win_length=window_size,
-        hop_length=int(window_size // hoplength_div),
-        n_mels=n_mels,
-        f_min=80.0, f_max=7600.0
-    )(wave)
+    def log(self, wave):
+        return self(wave).log2()
+    
 
-def log_mel_spectrogram(wave: torch.Tensor, sr:int, window_size:int, n_mels:int=80) -> torch.Tensor:
-    melspec = mel_spectrogram(
-        wave, sr, window_size, n_mels
-    )
-    return melspec.log2()
 
 #############
 # データ拡張 #
@@ -84,32 +103,35 @@ if __name__ == "__main__":
     wave_path = "./src/__example/001.wav"
     sr = 16000
     window_size = 512
-    waveform = load_wave(wave_path, sr) # torch.Size([1, 32825]) # c, wave
+    waveform = load_wave(wave_path, sr).cuda() # torch.Size([1, 32825]) # c, wave
     
     bwaveform = waveform.unsqueeze(0) # torch.Size([1, 1, 32825]) # b, c, wave
     bwaveform = torch.cat((bwaveform, bwaveform), dim=0) # to batch
     print(bwaveform.shape) # torch.Size([2, 1, 32825])
+    spectf = Spectrogram(window_size=window_size).to(bwaveform.device)
     
-    spec = spectrogram(bwaveform, window_size=window_size)
+    spec = spectf(bwaveform)
     print("#1", spec.shape) # torch.Size([2, 1, 257, 257])
-    waveform_grif = spec_to_inv_by_griffinlim(spec.abs(), window_size)
+    waveform_grif = spectf.inverse_by_griffinlim(spec.abs())
     print("#2", waveform_grif.shape)
 
-    logspec = log_spectrogram(waveform, window_size=512)
+    logspec = spectf.log(bwaveform)
     print(logspec.shape) # torch.Size([2, 1, 257, 257])
     
-    logmelspec = log_mel_spectrogram(waveform, sr, 512, n_mels=80)
-    print(logmelspec.shape) # torch.Size([2, 1, 80, 257])
     
-    waveform_gain = change_vol(waveform, gain=0.5)
+    melspectf = MelSpectrogram(sr, 512, n_mels=80, channel_ignore=True).to(bwaveform.device)
+    logmelspec = melspectf.log(bwaveform)
+    print("lms", logmelspec.shape) # torch.Size([2, 1, 80, 257])
+    
+    waveform_gain = change_vol(waveform.cpu(), gain=0.5)
     print(waveform.max(), waveform_gain.max())
     
-    waveform_pitch = pitch_shift(waveform, sample_rate=sr, pitch_shift=3)
+    waveform_pitch = pitch_shift(waveform.cpu(), sample_rate=sr, pitch_shift=3)
     print(waveform.max(), waveform_gain.max())
     
-    waveform_speed = time_stretch(waveform, sample_rate=sr, speed_rate=1.4)
+    waveform_speed = time_stretch(waveform.cpu(), sample_rate=sr, speed_rate=1.4)
     print(waveform_speed.shape)
     
     maskspec = spec_aug(spec)
-    waveform_grif = spec_to_inv_by_griffinlim(maskspec, window_size)
+    waveform_grif = spectf.inverse_by_griffinlim(maskspec)
     print("#2", waveform_grif.shape)

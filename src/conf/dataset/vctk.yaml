@@ -7,6 +7,10 @@ sr: 22050                         # sampling rate
 segment_length: 32768             # sample length
 n_speakers: 103
 
+# speaker audio mel spec
+window_size: 1024
+n_mels: 80
+
 # data augmentation
 scale_low: 0.25                  # lower bound used in random scaling
 scale_high: 1.0                  # upper bound used in random scaling
