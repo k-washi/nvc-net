@@ -366,7 +366,7 @@ class NLayerDiscriminator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, cfg) -> None:
         super().__init__()
-        
+        self.cfg = cfg
         # Discriminatorの設定
         self.num_dim = cfg.model.num_D
         nlayer_dis_list = []
@@ -457,15 +457,12 @@ class Discriminator(nn.Module):
         """
         loss = 0.0
         for melspectf in self.melspectf_list:
-            sx = melspectf.log(x)
-            st = melspectf.log(x)
-            loss += self._mean_squared_error(sx, st.detach())
-        
+            #with torch.no_grad():
+            st = melspectf(target)
+            sx = melspectf(x)
+            loss += self._mean_squared_error(sx, st.detach()) / self.cfg.ml.batch_size
         return loss
 
-
-        
-        
 if __name__ == "__main__":
     from src.util.conf import get_hydra_cnf
     cfg = get_hydra_cnf(config_dir="./src/conf", config_name="default")

@@ -1,6 +1,9 @@
+target: vctk
 # path to precomputed features
 data_dir: data/vctk/train/data
-dataset_metadata_file: data/vctk/train/metadata_train.csv
+dataset_metadata_train_file: data/vctk/train/metadata_train.csv
+dataset_metadata_val_file: data/vctk/val/metadata_train.csv
+dataset_metadata_test_file: data/vctk/val/metadata_train.csv
 speaker_list_file: src/dataset/vctk/spk/list_of_speakers.txt
 
 sr: 22050                         # sampling rate
@@ -15,5 +18,5 @@ n_mels: 80
 scale_low: 0.25                  # lower bound used in random scaling
 scale_high: 1.0                  # upper bound used in random scaling
 split_low: 30                    # lower bound used in random shuffle
-split_hight: 45                  # upper bound used in random shuffle
-max_jitter_steps: 30             # random jitter
+split_high: 45                  # upper bound used in random shuffle
+max_jitter_rate: 0.001           # random jitter

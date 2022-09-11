@@ -1,14 +1,31 @@
 seed: 3407
 
-# optimization parameters
-batch_size: 8
-epoch: 500
+# env
+gpu_devices: 1
+mix_precision: 32
+
+# val
+exp_id: 0
+art_output_dir: "./data/outputs"
+log_output_dir: "./log/output/"      # directory to save results
+
+# train param
+batch_size: 16
+epochs: 500
+num_workers: 4
 print_frequency: 50               # number of iterations before printing
 epochs_per_checkpoint: 50        # number of epochs for each checkpoint
-output_path: "./log/output/"      # directory to save results
+accumulate_grad_batches: 1
+gradient_clip_val: 0
+profiler: simple
+fast_dev_run: False
 
+
+# optimizer
 g_lr: 1e-4                        # learning rate for generator
 d_lr: 1e-4                        # learning rate for discriminator
 beta1: 0.5
 beta2: 0.9
 weight_decay: 0
+
+n_D_updates: 2

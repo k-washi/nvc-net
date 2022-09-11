@@ -97,3 +97,9 @@ python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/v
 
  python nvcnet/main.py -c cudnn -d 0 --output_path .log/baseline/ --batch_size 2 --speaker_dir=./nvcnet/data/list_of_speakers.txt --save_data_dir=./data/vctk_train/ 
  ```
+
+# Tensorboardの起動
+
+```
+tensorboard --logdir=./log/outputs/ --port 18053 --host 0.0.0.0
+```

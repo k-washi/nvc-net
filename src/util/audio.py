@@ -2,12 +2,22 @@ import torch
 import torchaudio
 import torchaudio.transforms as at
 import torch.nn as nn
+import torch.nn.functional as F
+from torch_audiomentations import Compose, Shift
+import numpy as np
+import random
+from nvcnet.utils.audio import random_jitter
 
 def load_wave(wave_path, sample_rate:int=16000) -> torch.Tensor:
     waveform, sr = torchaudio.load(wave_path, normalize=True)
     if sample_rate != sr:
         waveform = at.Resample(sr, sample_rate)(waveform)
     return waveform
+
+def save_wave(wave, output_path, sample_rate:int=16000) -> torch.Tensor:
+    if wave.dim() == 1: wave.unsqueeze(0)
+    torchaudio.save(filepath=str(output_path), src=wave, sample_rate=sample_rate)
+    
 
 class Spectrogram(nn.Module):
     def __init__(self, window_size:int, hoplength_div:int=4, power=2.0, channel_ignore=False) -> None:
@@ -32,9 +42,6 @@ class Spectrogram(nn.Module):
         if self.channel_ignore and spec.dim() == 4:
             spec = spec[:, 0, ...]
         return spec
-
-    def log(self, wave):
-        return self(wave).log2()
     
     def inverse_by_griffinlim(self, spec):
         return self._inv_tf(spec)
@@ -57,15 +64,77 @@ class MelSpectrogram(nn.Module):
         if self.channel_ignore and melspec.dim() == 4:
             melspec = melspec[:, 0, ...]
         return melspec
-
-    def log(self, wave):
-        return self(wave).log2()
     
 
 
 #############
 # データ拡張 #
 ############
+
+def random_scaling(x:torch.Tensor, low:float=0.0, high:float=1.0):
+    """Random scaling a Variable.
+
+
+    Args:
+        x (torch.Tensor): (batch, 1, time length)
+        low (float, optional): _description_. Defaults to 0.0.
+        high (float, optional): _description_. Defaults to 1.0.
+    """
+    scale = (torch.rand((x.size()[0], 1, 1)) * (high - low) + low).to(x.device)
+    return x * scale
+
+def random_flip(x:torch.Tensor):
+    """Random flipping sign of a Variable. (信号の上下を入れ替え)
+
+    Args:
+        x (torch.Tensor): _description_
+    """
+    scale = (2 * torch.randint(0, 2, (x.size()[0], 1, 1)) - 1).to(x.device)
+    return x * scale
+
+def get_random_jitter_transform(max_jitter_rate=0.001):
+    """Temporal jitter.
+    https://github.com/asteroid-team/torch-audiomentations
+    """
+    
+    apply_augmenation = Compose(
+        transforms=[
+            Shift(
+                min_shift=-max_jitter_rate,
+                max_shift=max_jitter_rate,
+                #shift_unit="samples",
+                rollover=False,
+                #p_mode="per_example",
+                p=1.0
+            )
+        ]
+    )
+    return apply_augmenation
+
+def random_split(x, lo, hi):
+    """メルスペクトログラムをn分割し、分割したものを並べ替える
+    x: メルスペクトログラム(batch, freq, time)
+    lo: 分割エリアの最小サンプル数
+    hi: 分割エリアの最大サンプル数
+    """
+    #x = torch.transpose(logmel, dim0=1, dim1=2)
+    b, f, n = x.shape
+    idx_list = []
+    for _ in range(b):
+        idx = np.cumsum(
+            [random.randint(lo, hi)
+            for _ in range(n // lo)])
+        idx = idx[idx < n]
+        partition = np.split(np.arange(n), idx)
+        random.shuffle(partition)
+        #print(partition)
+        idx = np.zeros((1, f, n))
+        idx[0, :] = np.hstack(partition)
+        idx_list.append(idx)
+    idx_list = np.vstack(idx_list)
+    x = torch.gather(x, dim=2, index=torch.from_numpy(idx_list).long().to(x.device))
+    return x
+
 def change_vol(waveform, gain:float=1):
     return at.Vol(gain)(waveform)
 
@@ -107,31 +176,45 @@ if __name__ == "__main__":
     
     bwaveform = waveform.unsqueeze(0) # torch.Size([1, 1, 32825]) # b, c, wave
     bwaveform = torch.cat((bwaveform, bwaveform), dim=0) # to batch
-    print(bwaveform.shape) # torch.Size([2, 1, 32825])
+    
+    import time
+    s = time.time()
+    bwaveform = random_flip(bwaveform)
+    #print("#a1", bwaveform.shape,  bwaveform[:, 0, :10])
+    bwaveform = random_scaling(bwaveform, 0.25, 1.0)
+    #print("#a2", bwaveform.shape, bwaveform[:, 0, :10])
+    
+    random_jitter = get_random_jitter_transform()
+    bwaveform = random_jitter(bwaveform, sr)
+    #print(time.time() - s)
+    #print(bwaveform[:,0, :40])
+    #print(bwaveform[:,0, -40:])
+    #print("#a3", bwaveform.shape) # torch.Size([2, 1, 32825])
     spectf = Spectrogram(window_size=window_size).to(bwaveform.device)
     
     spec = spectf(bwaveform)
-    print("#1", spec.shape) # torch.Size([2, 1, 257, 257])
+    #print("#1", spec.shape) # torch.Size([2, 1, 257, 257])
     waveform_grif = spectf.inverse_by_griffinlim(spec.abs())
-    print("#2", waveform_grif.shape)
+    #print("#2", waveform_grif.shape)
 
-    logspec = spectf.log(bwaveform)
-    print(logspec.shape) # torch.Size([2, 1, 257, 257])
+    logspec = spectf(bwaveform)
+    #print(logspec.shape) # torch.Size([2, 1, 257, 257])
     
     
     melspectf = MelSpectrogram(sr, 512, n_mels=80, channel_ignore=True).to(bwaveform.device)
-    logmelspec = melspectf.log(bwaveform)
-    print("lms", logmelspec.shape) # torch.Size([2, 1, 80, 257])
-    
+    logmelspec = melspectf(bwaveform)
+    #print("lms", logmelspec.shape) # torch.Size([2, 80, 257])
+    print(logmelspec.shape)
+    random_split(logmelspec, 30, 45)
     waveform_gain = change_vol(waveform.cpu(), gain=0.5)
-    print(waveform.max(), waveform_gain.max())
+    #print(waveform.max(), waveform_gain.max())
     
     waveform_pitch = pitch_shift(waveform.cpu(), sample_rate=sr, pitch_shift=3)
-    print(waveform.max(), waveform_gain.max())
+    #print(waveform.max(), waveform_gain.max())
     
     waveform_speed = time_stretch(waveform.cpu(), sample_rate=sr, speed_rate=1.4)
-    print(waveform_speed.shape)
+    #print(waveform_speed.shape)
     
     maskspec = spec_aug(spec)
     waveform_grif = spectf.inverse_by_griffinlim(maskspec)
-    print("#2", waveform_grif.shape)
+    #print("#2", waveform_grif.shape)

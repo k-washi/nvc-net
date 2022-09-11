@@ -1,3 +1,4 @@
+target: nvcnet
 n_speaker_embedding: 128          # dimension of speaker embedding
 
 # Discriminator network
