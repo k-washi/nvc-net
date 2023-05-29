@@ -24,8 +24,8 @@ fast_dev_run: False
 # optimizer
 g_lr: 1e-4                        # learning rate for generator
 d_lr: 1e-4                        # learning rate for discriminator
-beta1: 0.5
-beta2: 0.9
+beta1: 0.8
+beta2: 0.99
 weight_decay: 0
 
 n_D_updates: 2

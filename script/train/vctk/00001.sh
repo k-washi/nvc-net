@@ -1,5 +1,5 @@
 #!/bin/sh
-python src/train/nvcnet/00001.py \
+python src/train/nvcnet/vctk/00001.py \
 ml.exp_id=1 \
 ml.fast_dev_run=False \
 ml.art_output_dir=./data/outputs \

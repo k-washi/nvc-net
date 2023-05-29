@@ -6,7 +6,7 @@ ndf: 16
 n_layers_D: 4                     # number of layers in discriminator
 num_D: 3
 downsamp_factor: 4
-n_D_updates: 2
+n_D_updates: 1
 
 # Generator network
 ngf: 32
@@ -19,3 +19,20 @@ n_spk_layers: 5                  # number of layers in speaker encoder
 
 # multi-scale spectral loss
 window_sizes: [2048, 1024, 512]
+
+# loss
+label_smooth: false
+adv_loss_type: mse # bce or mse
+sisnr_loss:
+  is_use: false
+  lambda_snr: 5
+
+spk_loss:
+  is_use: false
+  type: mse # mse or cosine
+  lambda_spk: 5
+
+# loss 
+lambda_rec: 10
+lambda_con: 10
+lambda_kld: 0.02

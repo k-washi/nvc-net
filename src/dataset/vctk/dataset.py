@@ -24,7 +24,9 @@ class VCTKDataset(Dataset):
     
     def __getitem__(self, index):
         fname = self._wave_npz_list[index]
+        fp = self._path / fname
         data = np.load(self._path / fname)
+       
         w, speaker_id = data["wave"], data["speaker_id"]
         
         w *= 0.99 / (np.max(np.abs(w)) + 1e-7)
@@ -34,7 +36,7 @@ class VCTKDataset(Dataset):
         else:
             w = np.pad(w, (0, self.segment_length - len(w)), mode='constant')
         w = w[np.newaxis, :]
-        return w, speaker_id
+        return w, speaker_id, str(fp)
 
 if __name__ == "__main__":
     from src.util.conf import get_hydra_cnf

@@ -6,70 +6,215 @@ import torch.nn.functional as F
 from torch_audiomentations import Compose, Shift
 import numpy as np
 import random
-from nvcnet.utils.audio import random_jitter
+from pathlib import Path
+from typing import Union
+from librosa.filters import mel as librosa_mel_fn
 
-def load_wave(wave_path, sample_rate:int=16000) -> torch.Tensor:
-    waveform, sr = torchaudio.load(wave_path, normalize=True)
+
+MAX_WAV_VALUE = 32768.0
+
+
+def load_wave(
+    wave_file_path: Union[str, Path],
+    sample_rate: int = 16000,
+    mono: bool = False,
+) -> torch.Tensor:
+    """load wave
+
+    Args:
+        wave_file_path (str): file path
+        sample_rate (int, optional): if -1 return original sample rate. Defaults to -1.
+        is_torch (bool, optional): return torch.Tensor or np.ndarray. Defaults to True.
+        mono (bool, optional):
+            True: return [wave]
+            False: return [channel, wave].
+            Defaults to False.
+
+    Returns:
+        wave torch.Tensor or np.ndarray return
+        sample_rate (int)
+    """
+
+    wave, sr = torchaudio.load(wave_file_path)
+    if mono:
+        wave = wave[0]
     if sample_rate != sr:
-        waveform = at.Resample(sr, sample_rate)(waveform)
-    return waveform
+        wave = torchaudio.transforms.Resample(sr, sample_rate)(wave)
+    return wave
 
-def save_wave(wave, output_path, sample_rate:int=16000) -> torch.Tensor:
-    if wave.dim() == 1: wave.unsqueeze(0)
-    torchaudio.save(filepath=str(output_path), src=wave, sample_rate=sample_rate)
-    
+
+def save_wave(
+    wave: Union[np.ndarray, torch.Tensor],
+    output_path: Union[str, Path],
+    sample_rate: int = 16000,
+) -> None:
+    """save wave"""
+    if not isinstance(wave, torch.Tensor):
+        wave = torch.from_numpy(wave)
+
+    if wave.dim() == 1:
+        wave = wave.unsqueeze(0)
+    torchaudio.save(
+        filepath=str(output_path), src=wave.to(torch.float32), sample_rate=sample_rate
+    )
+
+## Signal processing
+
+def dynamic_range_compression_torch(
+    x: torch.Tensor, C: int = 1, clip_val: float = 1e-5
+) -> torch.Tensor:
+    """
+    PARAMS
+    ------
+    C: compression factor
+    """
+    return torch.log(torch.clamp(x, min=clip_val) * C)
+
+
+def dynamic_range_decompression_torch(x: torch.Tensor, C: int = 1) -> torch.Tensor:
+    """
+    PARAMS
+    ------
+    C: compression factor used to compress
+    """
+    return torch.exp(x) / C
+
+
+def spectral_normalize_torch(magnitudes: torch.Tensor) -> torch.Tensor:
+    output = dynamic_range_compression_torch(magnitudes)
+    return output
+
+
+def spectral_de_normalize_torch(magnitudes: torch.Tensor) -> torch.Tensor:
+    output = dynamic_range_decompression_torch(magnitudes)
+    return output
 
 class Spectrogram(nn.Module):
     def __init__(self, window_size:int, hoplength_div:int=4, power=2.0, channel_ignore=False) -> None:
         super().__init__()
-        self._tf = at.Spectrogram(
-            n_fft=window_size,
-            win_length=window_size,
-            hop_length=int(window_size // hoplength_div),
-            power=power
-        )
-        
-        self._inv_tf =  at.GriffinLim(
-            n_fft=window_size,
-            win_length=window_size,
-            hop_length=int(window_size // hoplength_div)
-        )
-        
+        self.win_size = window_size
+        self.n_fft = window_size
+        self.hop_size = int(window_size // hoplength_div)
         self.channel_ignore = channel_ignore
+        self.hann_window = {}
     
-    def forward(self, wave):
-        spec = self._tf(wave)
+    def forward(self, y):
+        if torch.min(y) < -1.0:
+            print("min value is ", torch.min(y))
+        if torch.max(y) > 1.0:
+            print("max value is ", torch.max(y))
+        dtype_device = str(y.dtype) + "_" + str(y.device)
+        wnsize_dtype_device = str(self.win_size) + "_" + dtype_device
+        if wnsize_dtype_device not in self.hann_window:
+            self.hann_window[wnsize_dtype_device] = torch.hann_window(self.win_size).to(
+                dtype=y.dtype, device=y.device
+            )
+        
+        if y.dim() == 2:
+            y =y.unsqueeze(1)
+        y = torch.nn.functional.pad(
+            y,
+            (int((self.n_fft - self.hop_size) / 2), int((self.n_fft - self.hop_size) / 2)),
+            mode="reflect",
+        )
+        y = y.squeeze(1)
+        spec = torch.stft(
+            y,
+            self.n_fft,
+            hop_length=self.hop_size,
+            win_length=self.win_size,
+            window=self.hann_window[wnsize_dtype_device],
+            center=False,
+            pad_mode="reflect",
+            normalized=False,
+            onesided=True,
+            return_complex=False,
+        )
+
+        spec = torch.sqrt(spec.pow(2).sum(-1) + 1e-6)
         if self.channel_ignore and spec.dim() == 4:
-            spec = spec[:, 0, ...]
+            spec = spec.squeeze(1)
         return spec
-    
-    def inverse_by_griffinlim(self, spec):
-        return self._inv_tf(spec)
 
 class MelSpectrogram(nn.Module):
-    def __init__(self, sr:int, window_size:int, n_mels:int=80, hoplength_div:int=4, channel_ignore=False) -> None:
+    def __init__(self, sr:int, window_size:int, n_mels:int=80, hoplength_div:int=4, channel_ignore=False, fmin=0, fmax=11025) -> None:
         super().__init__()
-        self._tf = at.MelSpectrogram(
-            sr, 
-            n_fft=window_size,
-            win_length=window_size,
-            hop_length=int(window_size // hoplength_div),
-            n_mels=n_mels,
-            f_min=80.0, f_max=7600.0,
-        )
+        self.win_size = window_size
+        self.n_fft = window_size
+        self.n_mels = n_mels
+        self.hop_size = int(window_size // hoplength_div)
+        self.sr = sr
         self.channel_ignore = channel_ignore
+        
+        self.mel_basis, self.hann_window = {}, {}
+        self.fmin = fmin
+        self.fmax = fmax
     
-    def forward(self, wave):
-        melspec = self._tf(wave)
-        if self.channel_ignore and melspec.dim() == 4:
-            melspec = melspec[:, 0, ...]
-        return melspec
+    def forward(self, y):
+        if y.dim() == 3:
+            y.squeeze(1)
+            
+        if torch.min(y) < -1.0:
+            print("min value is ", torch.min(y))
+        if torch.max(y) > 1.0:
+            print("max value is ", torch.max(y))
+        dtype_device = str(y.dtype) + "_" + str(y.device)
+        fmax_dtype_device = str(self.fmax) + "_" + dtype_device
+        wnsize_dtype_device = str(self.win_size) + "_" + dtype_device
+        if fmax_dtype_device not in self.mel_basis:
+            mel = librosa_mel_fn(
+                sr=self.sr, n_fft=self.n_fft, n_mels=self.n_mels, fmin=self.fmin, fmax=self.fmax
+            )
+            self.mel_basis[fmax_dtype_device] = torch.from_numpy(mel).to(
+                dtype=y.dtype, device=y.device
+            )
+        if wnsize_dtype_device not in self.hann_window:
+            self.hann_window[wnsize_dtype_device] = torch.hann_window(self.win_size).to(
+                dtype=y.dtype, device=y.device
+        )
+            
+        if y.dim() == 2:
+            y =y.unsqueeze(1)
+        y = torch.nn.functional.pad(
+            y,
+            (int((self.n_fft - self.hop_size) / 2), int((self.n_fft - self.hop_size) / 2)),
+            mode="reflect",
+        )
+        y = y.squeeze(1)
+        spec = torch.stft(
+            y,
+            self.n_fft,
+            hop_length=self.hop_size,
+            win_length=self.win_size,
+            window=self.hann_window[wnsize_dtype_device],
+            center=False,
+            pad_mode="reflect",
+            normalized=False,
+            onesided=True,
+            return_complex=True,
+        )
+
+        spec = torch.view_as_real(spec)
+        spec = torch.sqrt(spec.pow(2).sum(-1) + 1e-9)
+
+        spec = torch.matmul(self.mel_basis[fmax_dtype_device], spec)
+        spec = spectral_normalize_torch(spec)
+        if self.channel_ignore and spec.dim() == 4:
+            spec = spec.squeeze(1)
+        return spec
     
 
 
 #############
 # データ拡張 #
 ############
+
+def random_jitter(wave, max_jitter_steps):
+    r"""Temporal jitter."""
+    shape = wave.shape
+    wave = F.pad(wave, (0, 0, max_jitter_steps, max_jitter_steps))
+    wave = F.random_crop(wave, shape=shape)
+    return wave
 
 def random_scaling(x:torch.Tensor, low:float=0.0, high:float=1.0):
     """Random scaling a Variable.
@@ -193,8 +338,8 @@ if __name__ == "__main__":
     spectf = Spectrogram(window_size=window_size).to(bwaveform.device)
     
     spec = spectf(bwaveform)
-    #print("#1", spec.shape) # torch.Size([2, 1, 257, 257])
-    waveform_grif = spectf.inverse_by_griffinlim(spec.abs())
+    
+    print("#1", spec.shape) # torch.Size([2, 1, 257, 257])
     #print("#2", waveform_grif.shape)
 
     logspec = spectf(bwaveform)
@@ -215,6 +360,4 @@ if __name__ == "__main__":
     waveform_speed = time_stretch(waveform.cpu(), sample_rate=sr, speed_rate=1.4)
     #print(waveform_speed.shape)
     
-    maskspec = spec_aug(spec)
-    waveform_grif = spectf.inverse_by_griffinlim(maskspec)
     #print("#2", waveform_grif.shape)

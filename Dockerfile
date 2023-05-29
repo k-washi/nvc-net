@@ -1,28 +1,29 @@
-FROM ubuntu:20.04
-
-ENV DEBIAN_FRONTEND=noninteractive
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+ENV DEBIAN_FRONTEND="noninteractive" \
+    LC_ALL="C.UTF-8" \
+    LANG="C.UTF-8"
 RUN apt-get update -y && apt-get install -y build-essential vim \
-    wget curl git zip gcc cmake make cmake openssl \
+    wget curl git zip gcc make cmake openssl \
     libssl-dev libbz2-dev libreadline-dev \
     libsqlite3-dev python3-tk tk-dev python-tk \
     libfreetype6-dev libffi-dev liblzma-dev libsndfile1 ffmpeg -y
 
+# python関連
 RUN git clone https://github.com/yyuu/pyenv.git /root/.pyenv
 ENV HOME  /root
 ENV PYENV_ROOT $HOME/.pyenv
 ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 RUN pyenv --version
 
-RUN pyenv install 3.9.7
-RUN pyenv global 3.9.7
+RUN pyenv install 3.10.11
+RUN pyenv global 3.10.11
 
 RUN python --version
 RUN pyenv rehash
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip setuptools requests
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# poetry
+RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python3 -
+ENV PATH="/opt/poetry/bin:$PATH"
 
-RUN pip3 install torch==1.10.2+cpu torchvision==0.11.3+cpu torchaudio==0.10.2+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-
-WORKDIR /workspace
+WORKDIR /nvc_net

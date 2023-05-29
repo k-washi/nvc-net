@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from typing import Optional
+from torchmetrics import ScaleInvariantSignalNoiseRatio
 
 from src.model.ops import (
     ResidualBlock,
@@ -249,6 +250,8 @@ class NVCNet(nn.Module):
         
         mu, logvar = self.speaker(x)
         spk_emb = self.sample(mu, logvar)
+        l2_norm_emb = torch.norm(spk_emb, p=2, dim=-1, keepdim=True)
+        spk_emb = spk_emb / l2_norm_emb
         return spk_emb, mu, logvar
     
     def sample(self, mu:torch.Tensor, logvar:torch.Tensor) -> torch.Tensor:
@@ -382,13 +385,16 @@ class Discriminator(nn.Module):
             cfg.dataset.sr,
             window_size = window_size,
             n_mels = cfg.dataset.n_mels,
-            channel_ignore=True
+            channel_ignore=True,
+            fmin=cfg.dataset.fmin,
+            fmax=cfg.dataset.fmax_loss
         ) for window_size in self.window_sizes]
         self.melspectf_list = nn.ModuleList(melspectf_list)
         
-        self._adversarial_bceloss = nn.BCEWithLogitsLoss(reduction="sum") # sigmoid and BCEloss (同時に計算すると計算的に安定)
+        #self._adversarial_bceloss = nn.BCEWithLogitsLoss(reduction="sum") # sigmoid and BCEloss (同時に計算すると計算的に安定)
         self._mean_squared_error = nn.MSELoss(reduction="mean")
-        
+        if cfg.model.sisnr_loss.is_use:
+            self._si_snr_loss = ScaleInvariantSignalNoiseRatio()
     def forward(self, x, y):
         results = []
         for i in range(self.num_dim):
@@ -403,7 +409,7 @@ class Discriminator(nn.Module):
             )
         return results
     
-    def adversarial_loss(self, results, v):
+    def adversarial_loss(self, results, v, reduction="mean"):
         """Returns the adversarial loss.
 
         Args:
@@ -417,7 +423,13 @@ class Discriminator(nn.Module):
         for out in results:
             # 時間方向に異なるデータを処理した、Discriminatorの結果ごとにlossを計算
             t = (torch.ones(out[-1].shape) * v).to(out[-1].device)
-            r = self._adversarial_bceloss(out[-1], t.detach())
+            
+            if self.cfg.model.adv_loss_type == "bce":
+                r = F.binary_cross_entropy_with_logits(out[-1], t.detach(), reduction=reduction)
+            elif self.cfg.model.adv_loss_type == "mse":
+                r = F.mse_loss(out[-1], t.detach(), reduction=reduction)
+            else:
+                raise NotImplementedError(self.cfg.model.adv_loss_type)
             loss += r
         return loss
     
@@ -432,6 +444,21 @@ class Discriminator(nn.Module):
                 Tensor: Output loss.
         """
         return self._mean_squared_error(x, target)
+    def spk_perservatoin_loss(self, x, target):
+        """Speaker Embeddingの出力の一貫性を確認する損失
+
+        Args:
+                x (Tensor): Input content variable
+                target (Tensor): Target content variable.
+
+            Returns:
+                Tensor: Output loss.
+        """
+        
+        if self.cfg.model.spk_loss.type == "mse":
+            return self._mean_squared_error(x, target)
+        elif self.cfg.model.spk_loss.type == "cosine":
+            return 1 - F.cosine_similarity(x, target, dim=-1).mean()
     
     def perceptual_loss(self, x, target):
         """Returns perceptual loss."""
@@ -460,8 +487,17 @@ class Discriminator(nn.Module):
             #with torch.no_grad():
             st = melspectf(target)
             sx = melspectf(x)
-            loss += self._mean_squared_error(sx, st.detach()) / self.cfg.ml.batch_size
+            loss += self._mean_squared_error(sx, st.detach())
         return loss
+    def si_snr_loss(self, x, target):
+        """
+        IMPROVING GAN-BASED VOCODER FOR FAST AND HIGH-QUALITY SPEECH SYNTHESIS
+        https://www.isca-speech.org/archive/pdfs/interspeech_2022/mengnan22_interspeech.pdf
+        snrは負のため、-1 * lossにしている
+        """
+        x, target = x.squeeze(1), target.squeeze(1)
+        loss = self._si_snr_loss(x, target.detach())
+        return -loss
 
 if __name__ == "__main__":
     from src.util.conf import get_hydra_cnf
@@ -471,7 +507,9 @@ if __name__ == "__main__":
             cfg.dataset.sr,
             window_size = cfg.dataset.window_size,
             n_mels = cfg.dataset.n_mels,
-            channel_ignore=True
+            channel_ignore=True,
+            fmin=cfg.dataset.fmin,
+            fmax=cfg.dataset.fmax
         ).cuda()
         
         batch = 2
