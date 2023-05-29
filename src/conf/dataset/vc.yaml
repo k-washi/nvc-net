@@ -1,21 +1,23 @@
-target: vctk
+target: vc
 # path to precomputed features
-data_dir: data/vctk/train/data
-dataset_metadata_train_file: data/vctk/train/metadata_train.csv
-dataset_metadata_val_file: data/vctk/val/metadata_train.csv
-dataset_metadata_test_file: data/vctk/val/metadata_train.csv
-speaker_list_file: src/dataset/vctk/spk/list_of_speakers.txt
+data_dir: /data/karanovc
+dataset_metadata_train_file: /nvc_net/results/train_karanovc_spk_list.txt
+dataset_metadata_val_file: /nvc_net/results/val_karanovc_spk_list.txt
+dataset_metadata_test_file: /nvc_net/results/val_karanovc_spk_list.txt
+speaker_list_file: /nvc_net/results/karanovc_spk_list.txt
 
 sr: 22050                         # sampling rate
 segment_length: 32768             # sample length
 val_segment_length: 44288
-n_speakers: 103
+n_speakers: 604
 
 # speaker audio mel spec
 window_size: 1024
 n_mels: 80
 fmin: 0
-fmax: 11025
+fmax: 8000
+fmax_loss: 11025
+
 
 # data augmentation
 scale_low: 0.25                  # lower bound used in random scaling

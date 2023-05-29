@@ -22,7 +22,7 @@ seed_everything(SEED, workers=True)
 
 DATASET_LIST = ("vctk")
 
-src_path = Path(__file__, "..","..", "..", "..").resolve()
+src_path = Path(__file__, "..","..", "..", "..", "..").resolve()
 
 @hydra.main(
     version_base=None, 

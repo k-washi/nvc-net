@@ -1,55 +1,62 @@
-# ml-exp-env
-機械学習実験環境
+# NVC-Net
 
-# nvc-net インストール
+[NVC-Net](https://github.com/sony/ai-research-code/tree/master/nvcnet ) のpytorch version
 
-## docker環境の作成
+BCE lossをmseに変更 (GとDの乖離を減らす)
+信号の一致度をとるためsnr lossを追加
+spk embeddingの一貫性保証のため、cycle consistency embedding lossを追加
+label smoothingを追加
 
-```
-docker-compose -f docker-compose-gpu.yml up -d
-```
 
-[numbaにおいてllvmliteでpython3.9のpipが対応していないため、3.8.10を使用する](https://github.com/numba/llvmlite/issues/621#issuecomment-727142311)
-
-- [nnbala-cudaのインストール](https://nnabla.readthedocs.io/en/latest/python/pip_installation_cuda.html)
+# 実行環境作成
 
 ```
-pip install nnabla
-pip install nnabla-ext-cuda110-nccl2-mpi3-1-6
-python -c "import nnabla_ext.cuda, nnabla_ext.cudnn"
+docker-compose up -d
 ```
 
-## データセットのダウンロード
-
-[VCTKデータセット](http://www.udialogue.org/ja/download-ja/cstr-vctk-corpus.html)
-
 ```
-mkdir ./data
-wget http://www.udialogue.org/download/VCTK-Corpus.tar.gz -O ./data/VCTK-Corpus.tar.gz
-cd ./data
-tar -xvf VCTK-Corpus.tar.gz
-```
-
-# 実行環境作成(エディターモード)
-
-`src.util.~`などモジュールのimportを行うために必要です。
-
-```
+poetry install
+source .venv/bin/activate
 pip install -e .
 ```
 
-# Docker
-
- CUDAによりpytorchのインストール方法が異なるので、適宜[公式](https://pytorch.org/)を参照し、インストールしてください。
+# データ形式
 
 ```
-docker-compose -f docker-compose-gpu.yml up -d
+    音声データセットdir
+     |-spk1
+     |  |-wav
+           |-audio_file_00001.wav
+           |-audio_file_00002.wav
 ```
 
-でコンテナを作成し、VS Codeの`ms-vscode-remote.remote-containers`から開発環境に入る
+# 実行方法
 
+話者リストのファイルを作成する
 
-# gpu周り
+```python
+python ./src/dataset/create_spk_list.py -i /data/karanovc -o ./results/karanovc_spk_list.txt
+```
+
+作成したファイルをコピーして、訓練用話者と評価用話者に分ける
+
+訓練の実行 (適宜ファイルの中の変数を変更してください)
+
+```s
+./script/train/vc/00001.sh 
+```
+
+以下のディレクトリやファイルが特に変更する部分です。
+
+```s
+dataset.data_dir=/data/karanovc \ # データセットのディレクトリ
+dataset.dataset_metadata_train_file=/nvc_net/results/train_karanovc_spk_list.txt \ # 訓練用の話者リスト
+dataset.dataset_metadata_val_file=/nvc_net/results/val_karanovc_spk_list.txt \ # 評価用の話者リスト
+dataset.dataset_metadata_test_file=/nvc_net/results/val_karanovc_spk_list.txt \ # 評価用用の話者リスト
+dataset.speaker_list_file=/nvc_net/results/karanovc_spk_list.txt \ # # 話者リスト
+```
+
+# gpu関連
 
 もし、`docker-compose-gpu.yml`における以下の設定で上手くいかない場合
 
@@ -81,22 +88,6 @@ runtime: nvidia
 
 # 訓練の実行
 
-
-```
-# 前処理
-# make-testで0.1 evalに使用する (訓練用)
-python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/train -s ./src/dataset/vctk/spk/list_of_speakers.txt --make-test
-
-# 評価用
-python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/val -s ./src/dataset/vctk/spk/list_of_subs.txt
-
-# Unseen
-python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/unseen -s ./src/dataset/vctk/spk/list_of_unseen_speakers.txt 
-
-# 訓練
-
- python nvcnet/main.py -c cudnn -d 0 --output_path .log/baseline/ --batch_size 2 --speaker_dir=./nvcnet/data/list_of_speakers.txt --save_data_dir=./data/vctk_train/ 
- ```
 
 # Tensorboardの起動
 

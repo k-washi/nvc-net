@@ -141,3 +141,4 @@ data.dvc
 .hydra
 nohup/
 log/
+results/
