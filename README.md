@@ -7,26 +7,12 @@ BCE lossをmseに変更 (GとDの乖離を減らす)
 spk embeddingの一貫性保証のため、cycle consistency embedding lossを追加
 label smoothingを追加
 
-# nvc-net インストール
 
-## docker環境の作成
+# 実行環境作成
 
 ```
 docker-compose up -d
 ```
-
-## データセットのダウンロード
-
-[VCTKデータセット](http://www.udialogue.org/ja/download-ja/cstr-vctk-corpus.html)
-
-```
-mkdir ./data
-wget http://www.udialogue.org/download/VCTK-Corpus.tar.gz -O ./data/VCTK-Corpus.tar.gz
-cd ./data
-tar -xvf VCTK-Corpus.tar.gz
-```
-
-# 実行環境作成(エディターモード)
 
 ```
 poetry install
@@ -34,6 +20,41 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+# データ形式
+
+```
+    音声データセットdir
+     |-spk1
+     |  |-wav
+           |-audio_file_00001.wav
+           |-audio_file_00002.wav
+```
+
+# 実行方法
+
+話者リストのファイルを作成する
+
+```python
+python ./src/dataset/create_spk_list.py -i /data/karanovc -o ./results/karanovc_spk_list.txt
+```
+
+作成したファイルをコピーして、訓練用話者と評価用話者に分ける
+
+訓練の実行 (適宜ファイルの中の変数を変更してください)
+
+```s
+./script/train/vc/00001.sh 
+```
+
+以下のディレクトリやファイルが特に変更する部分です。
+
+```s
+dataset.data_dir=/data/karanovc \ # データセットのディレクトリ
+dataset.dataset_metadata_train_file=/nvc_net/results/train_karanovc_spk_list.txt \ # 訓練用の話者リスト
+dataset.dataset_metadata_val_file=/nvc_net/results/val_karanovc_spk_list.txt \ # 評価用の話者リスト
+dataset.dataset_metadata_test_file=/nvc_net/results/val_karanovc_spk_list.txt \ # 評価用用の話者リスト
+dataset.speaker_list_file=/nvc_net/results/karanovc_spk_list.txt \ # # 話者リスト
+```
 
 # gpu関連
 
@@ -67,22 +88,6 @@ runtime: nvidia
 
 # 訓練の実行
 
-
-```
-# 前処理
-# make-testで0.1 evalに使用する (訓練用)
-python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/train -s ./src/dataset/vctk/spk/list_of_speakers.txt --make-test
-
-# 評価用
-python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/val -s ./src/dataset/vctk/spk/list_of_subs.txt
-
-# Unseen
-python ./src/dataset/vctk/preprocess.py -i ./data/VCTK-Corpus/wav48/ -o ./data/vctk/unseen -s ./src/dataset/vctk/spk/list_of_unseen_speakers.txt 
-
-# 訓練
-
- python nvcnet/main.py -c cudnn -d 0 --output_path .log/baseline/ --batch_size 2 --speaker_dir=./nvcnet/data/list_of_speakers.txt --save_data_dir=./data/vctk_train/ 
- ```
 
 # Tensorboardの起動
 
