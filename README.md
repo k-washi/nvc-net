@@ -2,10 +2,10 @@
 
 [NVC-Net](https://github.com/sony/ai-research-code/tree/master/nvcnet ) のpytorch version
 
-BCE lossをmseに変更 (GとDの乖離を減らす)
-信号の一致度をとるためsnr lossを追加
-spk embeddingの一貫性保証のため、cycle consistency embedding lossを追加
-label smoothingを追加
+- BCE lossをmseに変更 (GとDの乖離を減らす)
+- 信号の一致度をとるためsnr lossを追加
+- spk embeddingの一貫性保証のため、cycle consistency embedding lossを追加
+- label smoothingを追加
 
 
 # 実行環境作成
