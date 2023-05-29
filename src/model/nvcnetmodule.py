@@ -148,7 +148,7 @@ class NVCNetModelModule(LightningModule):
                 self.cfg.model.lambda_rec * g_loss_rec + \
                 self.cfg.model.sisnr_loss.lambda_snr * si_snr_loss + \
                 self.cfg.model.spk_loss.lambda_spk * g_loss_spk_emb
-        self.log("train/g_loss", g_loss_rec, on_step=True, prog_bar=True, logger=True)
+        self.log("train/g_loss", g_loss, on_step=True, prog_bar=True, logger=True)
         
         self.manual_backward(g_loss)
         optimizer_g.step()
