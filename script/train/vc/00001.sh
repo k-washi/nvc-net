@@ -1,6 +1,6 @@
 #!/bin/sh
 python src/train/nvcnet/vc/00001.py \
-ml.exp_id=1 \
+ml.exp_id=2 \
 ml.fast_dev_run=false \
 ml.art_output_dir=./data/outputs \
 ml.log_output_dir=./log/outputs \

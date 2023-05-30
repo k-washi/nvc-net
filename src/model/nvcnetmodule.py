@@ -179,8 +179,8 @@ class NVCNetModelModule(LightningModule):
     def validation_step(self, batch, batch_idx):
         _, labels, fp_list = batch
         for label, fp in zip(labels, fp_list):
+            label = label.item()
             if label not in self._val_fp_dic:
-                label = label.item()
                 self._val_fp_dic[label] = []
             self._val_fp_dic[label].append(fp)
     
@@ -203,15 +203,15 @@ class NVCNetModelModule(LightningModule):
         adv_real_label = 1
         if self.cfg.model.label_smooth:
             adv_real_label = 0.9
-            
         min_dataset_num = 10*10
         g_loss_list, g_loss_adv_list, g_loss_con_list, g_loss_kld_list, g_loss_rec_list, d_loss_list = [], [], [], [], [], []
         si_snr_loss_list,  g_loss_spk_emb_list = [], []
         for fp_list in self._val_fp_dic.values():
             min_dataset_num = min(min_dataset_num, len(fp_list))
+        min_dataset_num = min(min_dataset_num, self.cfg.ml.val_per_spk)
         label_prod = itertools.permutations(self._val_fp_dic.keys(), 2)
-        for i in range(min_dataset_num):
-            for label1, label2 in label_prod:
+        for label1, label2 in label_prod:
+            for i in range(min_dataset_num):
                 fp1 = self._val_fp_dic[label1][i]
                 fp2 = self._val_fp_dic[label2][i]
                 
@@ -306,11 +306,11 @@ class NVCNetModelModule(LightningModule):
                 output_dir.mkdir(exist_ok=True)
                 output_dir = output_dir / f"{self.cfg.ml.exp_id:05d}" / f"{self.current_epoch:05d}"
                 output_dir.mkdir(exist_ok=True, parents=True)
-                for i, (x, y, r, z) in enumerate(zip(input_x.detach().cpu(), input_y.detach().cpu(), x_real.detach().cpu(), x_fake.detach().cpu())):
-                    x_output_path = output_dir / f"{i:05d}_{label1}_in.wav"
-                    y_output_path = output_dir / f"{i:05d}_{label1}_ref.wav"
-                    r_output_path = output_dir / f"{i:05d}_{label1}_real.wav"
-                    z_output_path = output_dir / f"{i:05d}_{label1}_to_{label2}_fake.wav"
+                for j, (x, y, r, z) in enumerate(zip(input_x.detach().cpu(), input_y.detach().cpu(), x_real.detach().cpu(), x_fake.detach().cpu())):
+                    x_output_path = output_dir / f"{i:05d}_{j:05d}_{label1}_in.wav"
+                    y_output_path = output_dir / f"{i:05d}_{j:05d}_{label1}_ref.wav"
+                    r_output_path = output_dir / f"{i:05d}_{j:05d}_{label1}_real.wav"
+                    z_output_path = output_dir / f"{i:05d}_{j:05d}_{label1}_to_{label2}_fake.wav"
                     
                     save_wave(x, x_output_path, self.cfg.dataset.sr)
                     save_wave(y, y_output_path, self.cfg.dataset.sr)

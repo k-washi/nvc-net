@@ -8,6 +8,7 @@ mix_precision: 32
 exp_id: 0
 art_output_dir: "./data/outputs"
 log_output_dir: "./log/output/"      # directory to save results
+val_per_spk: 5
 
 # train param
 batch_size: 16
