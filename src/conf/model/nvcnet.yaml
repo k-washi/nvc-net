@@ -36,3 +36,4 @@ spk_loss:
 lambda_rec: 10
 lambda_con: 10
 lambda_kld: 0.02
+lambda_adv: 1

@@ -142,7 +142,7 @@ class NVCNetModelModule(LightningModule):
             g_loss_spk_emb = self.discriminator.spk_perservatoin_loss(_r_fake, r_fake)
             self.log("train/g_loss_spk", g_loss_spk_emb, on_step=True, prog_bar=True, logger=True)
             
-        g_loss = g_loss_adversarial + \
+        g_loss = self.cfg.model.lambda_adv * g_loss_adversarial + \
                 self.cfg.model.lambda_con * g_loss_con + \
                 self.cfg.model.lambda_kld * g_loss_kld + \
                 self.cfg.model.lambda_rec * g_loss_rec + \
@@ -167,6 +167,7 @@ class NVCNetModelModule(LightningModule):
             # Discriminatorの結果を見分けるように損失を計算
             d_loss = self.discriminator.adversarial_loss(dis_real_x, adv_real_label) \
                 + self.discriminator.adversarial_loss(dis_fake_y, 0.0)
+            d_loss = self.cfg.model.lambda_adv * d_loss
             self.log("train/d_loss", d_loss, on_step=True, prog_bar=True, logger=True)
             self.manual_backward(d_loss)
             optimizer_d.step()
@@ -277,7 +278,7 @@ class NVCNetModelModule(LightningModule):
                     g_loss_spk_emb = self.discriminator.spk_perservatoin_loss(_r_fake, r_fake)
                     g_loss_spk_emb_list.append(g_loss_spk_emb.detach().cpu().item())
                     
-                g_loss = g_loss_adversarial + \
+                g_loss = self.cfg.model.lambda_adv * g_loss_adversarial + \
                     self.cfg.model.lambda_con * g_loss_con + \
                     self.cfg.model.lambda_kld * g_loss_kld + \
                     self.cfg.model.lambda_rec * g_loss_rec + \
@@ -297,6 +298,7 @@ class NVCNetModelModule(LightningModule):
                 # Discriminatorの結果を見分けるように損失を計算
                 d_loss = self.discriminator.adversarial_loss(dis_real_x, adv_real_label) \
                     + self.discriminator.adversarial_loss(dis_fake_y, 0.0)
+                d_loss = self.cfg.model.lambda_adv * d_loss
                 d_loss_list.append(d_loss.detach().cpu().item())
                 
                 
